@@ -1,5 +1,6 @@
 from PIL import Image
-import os, sys
+#import Image
+import os, sys, math
 
 class Loader(object):
 
@@ -17,10 +18,12 @@ class ImageHandler(object):
         self.list = images
         self.wmin = 10000
         self.hmin = 10000
+        self.path = './adjust/'
 
     def __call__(self):
         self.smallest()
-        #self.crop()
+        cropped = self.cropY()
+        self.adjustX(cropped)
 
     def smallest(self):
         wminfile = ''
@@ -35,32 +38,50 @@ class ImageHandler(object):
             if h < self.hmin:
                 self.hmin = h
                 hminfile = i
-        print wminfile, self.wmin
-        print hminfile, self.hmin
+        print(wminfile, self.wmin)
+        print(hminfile, self.hmin)
 
-    def crop(self):
-        path = './crop/'
+    def adjustX(self, images):
+        cover = Image.open(self.list[0])
+        basis = cover.size[0]
         try:
-            if not(os.path.isdir(path)):
-                os.makedirs(os.path.join(path))
+            if not(os.path.isdir(self.path)):
+                os.makedirs(os.path.join(self.path))
         except OSError as e:
             if e.errno != errno.EEXIST:
-                print 'Failed to create directory!!!'
+                print('Failed to create directory!!!')
                 raise
+        for i in images:
+            print('Adjusting {0}...'.format(i.filename))
+            w = i.size[0]
+            h = i.size[1]
+            if w > basis:
+                wgap = w - basis
+                left = math.floor(wgap / 2)
+                layer = i.crop((left, 0, left + basis, h))
+                print('crop:{0}-->{1}\n'.format((w,h), layer.size))
+            else:
+                size = (basis, h)
+                r, g, b = i.getpixel((w / 2, 10))
+                #layer = Image.new('RGB', size, (255, 255, 255))
+                layer = Image.new('RGB', size, (r, g, b))
+                layer.paste(i, tuple(map(lambda x:math.floor((x[0] - x[1]) / 2), zip(size, i.size))))
+                print('paste:{0}-->{1}\n'.format((w,h), layer.size))
+            layer.save(self.path + i.filename)
+            #layer.save(self.path + i.filename, dpi=(250,250))
+
+    def cropY(self):
+        res = list()
         for i in self.list:
             im = Image.open(i)
-            print 'processing {0}...'.format(i)
             w = im.size[0]
             h = im.size[1]
-            wgap = w - self.wmin
-            hgap = h - self.hmin
-            left = wgap / 2
-            upper = 0
-            right = left + self.wmin
-            lower = self.hmin
-            cropped = im.crop((left, upper, right, lower))
-            print '{0}-->{1}\n'.format((w,h), cropped.size)
-            cropped.save(path + i)
+            print('Cropping {0}...'.format(i))
+            cropped = im.crop((0, 0, w, self.hmin))
+            cropped.filename = i
+            print('{0}-->{1}\n'.format((w,h), cropped.size))
+            res.append(cropped)
+        return res
 
 
 def main():
