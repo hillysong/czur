@@ -68,7 +68,6 @@ class ImageHandler(object):
                 layer.paste(i, tuple(map(lambda x:math.floor((x[0] - x[1]) / 2), zip(size, i.size))))
                 print('paste:{0}-->{1}\n'.format((w,h), layer.size))
             layer.save(self.path + i.filename)
-            #layer.save(self.path + i.filename, dpi=(250,250))
 
     def cropY(self):
         res = list()
