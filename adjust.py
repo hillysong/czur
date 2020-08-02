@@ -27,30 +27,6 @@ class ImageHandler(object):
         cropped = self.cropY()
         self.adjustX(cropped)
 
-    #def smallest(self):
-    #    wminfile = ''
-    #    hminfile = ''
-    #    for f in self.list:
-    #        im = Image.open(f)
-    #        w = im.size[0]
-    #        h = im.size[1]
-    #        if w < self.wmin:
-    #            self.wmin = w
-    #            wminfile = f
-    #        if h < self.hmin:
-    #            self.hmin = h
-    #            hminfile = f
-    #    print(wminfile, self.wmin)
-    #    print(hminfile, self.hmin)
-
-    #def cover(self):
-    #    cover_page = Image.open(self.list[0])
-    #    w = cover_page.size[0]
-    #    h = cover_page.size[1]
-    #    self.wmin = w
-    #    self.hmin = h
-    #    print(self.wmin, self.hmin)
-
     def reference(self):
         cover_page = Image.open(self.list[0])
         self.wmin = cover_page.size[0]
