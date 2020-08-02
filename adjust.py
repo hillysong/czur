@@ -21,25 +21,46 @@ class ImageHandler(object):
         self.path = './adjust/'
 
     def __call__(self):
-        self.smallest()
+        #self.smallest()
+        #self.cover()
+        self.reference()
         cropped = self.cropY()
         self.adjustX(cropped)
 
-    def smallest(self):
-        wminfile = ''
-        hminfile = ''
-        for i in self.list:
-            im = Image.open(i)
-            w = im.size[0]
-            h = im.size[1]
-            if w < self.wmin:
-                self.wmin = w
-                wminfile = i
-            if h < self.hmin:
-                self.hmin = h
-                hminfile = i
-        print(wminfile, self.wmin)
-        print(hminfile, self.hmin)
+    #def smallest(self):
+    #    wminfile = ''
+    #    hminfile = ''
+    #    for f in self.list:
+    #        im = Image.open(f)
+    #        w = im.size[0]
+    #        h = im.size[1]
+    #        if w < self.wmin:
+    #            self.wmin = w
+    #            wminfile = f
+    #        if h < self.hmin:
+    #            self.hmin = h
+    #            hminfile = f
+    #    print(wminfile, self.wmin)
+    #    print(hminfile, self.hmin)
+
+    #def cover(self):
+    #    cover_page = Image.open(self.list[0])
+    #    w = cover_page.size[0]
+    #    h = cover_page.size[1]
+    #    self.wmin = w
+    #    self.hmin = h
+    #    print(self.wmin, self.hmin)
+
+    def reference(self):
+        cover_page = Image.open(self.list[0])
+        self.wmin = cover_page.size[0]
+        hmin_file = ''
+        hsum = 0
+        for f in self.list:
+            im = Image.open(f)
+            hsum = hsum + im.size[1]
+        self.hmin = hsum / len(self.list)
+        print('reference height = {}'.format(self.hmin))
 
     def adjustX(self, images):
         cover = Image.open(self.list[0])
@@ -62,22 +83,24 @@ class ImageHandler(object):
                 print('crop:{0}-->{1}\n'.format((w,h), layer.size))
             else:
                 size = (basis, h)
-                r, g, b = i.getpixel((w / 2, 10))
-                #layer = Image.new('RGB', size, (255, 255, 255))
-                layer = Image.new('RGB', size, (r, g, b))
+                #r, g, b = i.getpixel((w / 2, 10))
+                #print('(r, g, b) = {}, {}, {}'.format(r, g, b))
+                #layer = Image.new('RGB', size, (r, g, b))
+                layer = Image.new('RGB', size, (255, 255, 255))
                 layer.paste(i, tuple(map(lambda x:math.floor((x[0] - x[1]) / 2), zip(size, i.size))))
                 print('paste:{0}-->{1}\n'.format((w,h), layer.size))
             layer.save(self.path + i.filename)
+            #layer.save(self.path + i.filename, dpi=(250,250))
 
     def cropY(self):
         res = list()
-        for i in self.list:
-            im = Image.open(i)
+        for f in self.list:
+            im = Image.open(f)
             w = im.size[0]
             h = im.size[1]
-            print('Cropping {0}...'.format(i))
+            print('Cropping {0}...'.format(f))
             cropped = im.crop((0, 0, w, self.hmin))
-            cropped.filename = i
+            cropped.filename = f
             print('{0}-->{1}\n'.format((w,h), cropped.size))
             res.append(cropped)
         return res
