@@ -1,93 +1,115 @@
 from PIL import Image
-#import Image
+from argparse import ArgumentParser
+from loguru import logger
 import os, sys, math
 
-class Loader(object):
 
-    def __init__(self, p):
-        self.path = p 
-
-    def __call__(self):
-        files = [f for f in os.listdir(self.path) if f.startswith('image')]
-        return sorted(files)
+def get_image_list(args):
+    path = args.path
+    files = [f for f in os.listdir(path) if f.startswith('image')]
+    return sorted(files)
 
 
-class ImageHandler(object):
+def get_statistics(images):
+    widths, heights = [], []
+    for filename in images:
+        image = Image.open(filename)
+        widths.append(image.size[0])
+        heights.append(image.size[1])
 
-    def __init__(self, images):
-        self.list = images
-        self.wmin = 10000
-        self.hmin = 10000
-        self.path = './adjust/'
+    min_w = min(widths)
+    min_w_idx = widths.index(min_w)
+    logger.info(f'min_w = {min_w}, {images[min_w_idx]}')
 
-    def __call__(self):
-        #self.smallest()
-        #self.cover()
-        self.reference()
-        cropped = self.cropY()
-        self.adjustX(cropped)
+    max_w = max(widths)
+    max_w_idx = widths.index(max_w)
+    logger.info(f'max_w = {max_w}, {images[max_w_idx]}')
 
-    def reference(self):
-        cover_page = Image.open(self.list[0])
-        self.wmin = cover_page.size[0]
-        hmin_file = ''
-        hsum = 0
-        for f in self.list:
-            im = Image.open(f)
-            hsum = hsum + im.size[1]
-        self.hmin = hsum / len(self.list)
-        print('reference height = {}'.format(self.hmin))
+    min_h = min(heights)
+    min_h_idx = heights.index(min_h)
+    logger.info(f'min_h = {min_h}, {images[min_h_idx]}')
 
-    def adjustX(self, images):
-        cover = Image.open(self.list[0])
-        basis = cover.size[0]
-        try:
-            if not(os.path.isdir(self.path)):
-                os.makedirs(os.path.join(self.path))
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                print('Failed to create directory!!!')
-                raise
-        for i in images:
-            print('Adjusting {0}...'.format(i.filename))
-            w = i.size[0]
-            h = i.size[1]
-            if w > basis:
-                wgap = w - basis
-                left = math.floor(wgap / 2)
-                layer = i.crop((left, 0, left + basis, h))
-                print('crop:{0}-->{1}\n'.format((w,h), layer.size))
-            else:
-                size = (basis, h)
-                #r, g, b = i.getpixel((w / 2, 10))
-                #print('(r, g, b) = {}, {}, {}'.format(r, g, b))
-                #layer = Image.new('RGB', size, (r, g, b))
-                layer = Image.new('RGB', size, (255, 255, 255))
-                layer.paste(i, tuple(map(lambda x:math.floor((x[0] - x[1]) / 2), zip(size, i.size))))
-                print('paste:{0}-->{1}\n'.format((w,h), layer.size))
-            layer.save(self.path + i.filename)
-            #layer.save(self.path + i.filename, dpi=(250,250))
+    max_h = max(heights)
+    max_h_idx = heights.index(max_h)
+    logger.info(f'max_h = {max_h}, {images[max_h_idx]}')
 
-    def cropY(self):
-        res = list()
-        for f in self.list:
-            im = Image.open(f)
-            w = im.size[0]
-            h = im.size[1]
-            print('Cropping {0}...'.format(f))
-            cropped = im.crop((0, 0, w, self.hmin))
-            cropped.filename = f
-            print('{0}-->{1}\n'.format((w,h), cropped.size))
-            res.append(cropped)
-        return res
+    avg_w = sum(widths) / len(widths)
+    avg_h = sum(heights) / len(heights)
+    logger.info(f'avg_w = {avg_w}')
+    logger.info(f'avg_h = {avg_h}')
+
+    return min_w, min_h, avg_w, avg_h
+
+
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument('--path', type=str, default='./')
+    args = parser.parse_args()
+
+    for k, v in vars(args).items():
+        logger.info(f'PARAMETER | {k} : {v}')
+    logger.info('')
+    logger.info('')
+
+    return args
+
+
+def make_result_directory(args):
+    path = os.path.join(args.path, 'adjust')
+    try:
+        if not (os.path.isdir(path)):
+            os.makedirs(os.path.join(path))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            logger.error('Failed to create directory!!!')
+            raise
+
+
+def crop_or_resize_w(files, avg_w, args):
+    new_images = []
+    for f in files:
+        image = Image.open(f)
+        w = int(image.size[0])
+        h = int(image.size[1])
+        avg_w = int(avg_w)
+
+        if w > avg_w:
+            diff_w = int(math.floor((w - avg_w) / 2))
+            new_image = image.crop((diff_w, 0, avg_w + diff_w, h))
+            logger.info(f'{f} is w-cropped to ({avg_w}, {h})')
+        else:
+            new_image = image.resize((avg_w, h))
+            logger.info(f'{f} is w-resized to ({avg_w}, {h})')
+        new_images.append(new_image)
+    return new_images
+
+
+def crop_or_resize_h(images, filenames, avg_h, args):
+    assert len(images) == len(filenames)
+    path = os.path.join(args.path, 'adjust')
+    for image, name in zip(images, filenames):
+        w = int(image.size[0])
+        h = int(image.size[1])
+        avg_h = int(avg_h)
+
+        if h > avg_h:
+            diff_h = int(math.floor((h - avg_h) / 2))
+            new_image = image.crop((0, diff_h, w, avg_h + diff_h))
+            logger.info(f'{name} is h-cropped to ({w}, {avg_h})')
+        else:
+            new_image = image.resize((w, avg_h))
+            logger.info(f'{name} is h-resized to ({w}, {avg_h})')
+        new_image.save(os.path.join(path, name))
 
 
 def main():
-    path = './'
-    ld = Loader(path)
-    files = ld()
-    handler = ImageHandler(files)
-    handler()
+    args = parse_args()
+    make_result_directory(args)
+    files = get_image_list(args)
+    min_w, min_h, avg_w, avg_h = get_statistics(files)
+    images = crop_or_resize_w(files, avg_w, args)
+    crop_or_resize_h(images, files, avg_h, args)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     sys.exit(main())
