@@ -76,10 +76,11 @@ def crop_or_resize_w(files, avg_w, args):
         if w > avg_w:
             diff_w = int(math.floor((w - avg_w) / 2))
             new_image = image.crop((diff_w, 0, avg_w + diff_w, h))
-            logger.info(f'{f} is w-cropped to ({avg_w}, {h})')
+            done = 'cropped'
         else:
             new_image = image.resize((avg_w, h))
-            logger.info(f'{f} is w-resized to ({avg_w}, {h})')
+            done = 'resized'
+        logger.info(f'{f} is w-{done }to ({avg_w}, {h})')
         new_images.append(new_image)
     return new_images
 
@@ -95,10 +96,11 @@ def crop_or_resize_h(images, filenames, avg_h, args):
         if h > avg_h:
             diff_h = int(math.floor((h - avg_h) / 2))
             new_image = image.crop((0, diff_h, w, avg_h + diff_h))
-            logger.info(f'{name} is h-cropped to ({w}, {avg_h})')
+            done = 'cropped'
         else:
             new_image = image.resize((w, avg_h))
-            logger.info(f'{name} is h-resized to ({w}, {avg_h})')
+            done = 'resized'
+        logger.info(f'{name} is h-{done} to ({w}, {avg_h})')
         new_image.save(os.path.join(path, name))
 
 
